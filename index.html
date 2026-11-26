@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Schema Viewer</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      color: #232a3b;
+      background: #f7f8fc;
+      font-synthesis: none;
+      --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+      --muted: #5e687c;
+      --line: #dce1ed;
+      --accent: #5046b4;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, a { font: inherit; }
+    button { cursor: pointer; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    [hidden] { display: none !important; }
+    .app-bar {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+    .bar-inner, main {
+      width: min(calc(100% - 64px), 1440px);
+      margin-inline: auto;
+    }
+    .bar-inner {
+      min-height: 67px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .brand, .file-actions, .schema-meta, .legend, .view-controls {
+      display: flex;
+      align-items: center;
+    }
+    .brand { gap: 10px; font-size: 15px; font-weight: 700; white-space: nowrap; }
+    .brand-mark {
+      position: relative;
+      display: inline-block;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: #5248b8;
+    }
+    .brand-mark::before, .brand-mark::after {
+      position: absolute;
+      width: 7px;
+      height: 6px;
+      border: 1.5px solid #fff;
+      border-radius: 2px;
+      content: "";
+    }
+    .brand-mark::before { left: 7px; top: 8px; }
+    .brand-mark::after { right: 7px; bottom: 8px; }
+    .brand-mark span {
+      position: absolute;
+      left: 12px;
+      top: 15px;
+      width: 7px;
+      height: 6px;
+      border-left: 1.5px solid #fff;
+      border-bottom: 1.5px solid #fff;
+    }
+    .file-actions { gap: 17px; font-size: 13px; font-weight: 600; }
+    .example-link { color: var(--muted); text-decoration: none; white-space: nowrap; }
+    .example-link:hover { color: var(--accent); text-decoration: underline; }
+    .open-file {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #272d44;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 9px 13px;
+      color: #fff;
+      font-weight: inherit;
+      white-space: nowrap;
+    }
+    .open-file:hover { background: #3c4260; }
+    .open-file span { font-size: 17px; line-height: .7; }
+    main { padding-block: 32px 22px; }
+    .schema-header {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px 24px;
+      margin-bottom: 18px;
+    }
+    .schema-heading { min-width: 0; }
+    h1 {
+      margin: 0 0 5px;
+      font-size: clamp(28px, 4vw, 37px);
+      font-weight: 710;
+      line-height: 1.12;
+      letter-spacing: -.048em;
+      overflow-wrap: anywhere;
+    }
+    .source {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+    .schema-meta { gap: 10px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+    .schema-meta span + span::before { content: "·"; margin-right: 10px; color: #788097; }
+    .message {
+      margin: 0 0 14px;
+      padding: 10px 14px;
+      border: 1px solid #edc6c5;
+      border-radius: 8px;
+      color: #8b3237;
+      background: #fff5f4;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+    .diagram {
+      display: flex;
+      flex-direction: column;
+      height: clamp(450px, calc(100vh - 208px), 880px);
+      height: clamp(450px, calc(100dvh - 208px), 880px);
+      overflow: hidden;
+      border: 1px solid #d8deed;
+      border-radius: 15px;
+      background: #fff;
+      box-shadow: 0 4px 18px #26335509;
+    }
+    .viewport {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      overflow: clip;
+      background: #f1f3fb radial-gradient(circle, #c1c9e0 0.8px, transparent 1px);
+      background-size: 19px 19px;
+      touch-action: none;
+      cursor: grab;
+    }
+    .viewport:focus-visible { outline-offset: -3px; }
+    .viewport.dragging { cursor: grabbing; user-select: none; }
+    canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .tables { position: absolute; left: 0; top: 0; transform-origin: top left; }
+    .table-card {
+      position: absolute;
+      width: 280px;
+      overflow: hidden;
+      border: 1px solid #d1d8eb;
+      border-radius: 11px;
+      background: #fff;
+      box-shadow: 0 2px 3px #2833600b, 0 7px 20px #2833600d;
+      cursor: auto;
+    }
+    .table-card:has(.table-title[aria-pressed="true"]) {
+      border-color: #7064d0;
+      box-shadow: 0 0 0 2px #c6bef5, 0 7px 20px #28336014;
+    }
+    .table-card.dimmed { opacity: .52; }
+    .table-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 49px;
+      padding: 10px 13px;
+      border: 0;
+      border-bottom: 1px solid #e5e7f3;
+      background: #f7f6fe;
+      color: #302b55;
+      font: 700 14px/1.35 var(--mono);
+      text-align: left;
+      overflow-wrap: anywhere;
+    }
+    .table-title:hover, .table-title[aria-pressed="true"] { background: #eeebfc; }
+    .table-title:focus-visible { outline-offset: -3px; }
+    .table-icon {
+      flex: none;
+      width: 15px;
+      height: 14px;
+      border: 1.4px solid currentColor;
+      border-radius: 3px;
+      color: #6a60b7;
+      background:
+        linear-gradient(currentColor, currentColor) 0 3px / 100% 1px no-repeat,
+        linear-gradient(currentColor, currentColor) 4px 4px / 1px 100% no-repeat;
+    }
+    .columns { list-style: none; padding: 3px 0; margin: 0; }
+    .column-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 96px);
+      align-items: center;
+      gap: 9px;
+      min-height: 34px;
+      padding: 6px 12px;
+      font: 12px/1.35 var(--mono);
+      overflow-wrap: anywhere;
+    }
+    .column-row + .column-row { border-top: 1px solid #eff1f7; }
+    .column-row.linked { background: #f5f2ff; }
+    .column-type { color: #536079; text-align: right; }
+    .column-name { font-weight: 550; }
+    .badge {
+      display: inline-block;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font: 700 9px/1.5 var(--mono);
+      vertical-align: 1px;
+    }
+    .column-name .badge { margin-left: 5px; }
+    .pk { color: #77511b; background: #fbefd5; }
+    .fk { color: #5142a1; background: #ece8fc; }
+    .null-mark {
+      margin-left: 4px;
+      color: #6154a4;
+      font-weight: 700;
+    }
+    .no-columns { margin: 0; padding: 12px; font-size: 12px; color: var(--muted); }
+    .empty {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 14px;
+      pointer-events: none;
+    }
+    .diagram-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px 18px;
+      min-height: 52px;
+      padding: 7px 12px 7px 16px;
+      border-top: 1px solid var(--line);
+    }
+    .legend { flex-wrap: wrap; gap: 4px 15px; font-size: 11px; color: var(--muted); }
+    .legend span { white-space: nowrap; }
+    .legend .badge, .legend .null-mark { margin: 0 3px 0 0; }
+    .view-controls {
+      flex: none;
+      gap: 2px;
+      padding: 2px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .view-controls button {
+      display: grid;
+      place-items: center;
+      width: 29px;
+      height: 27px;
+      border: 0;
+      border-radius: 5px;
+      background: #fff;
+      color: #344059;
+      font-size: 18px;
+      line-height: 1;
+    }
+    .view-controls button:hover { background: #eeebfc; color: #463c9e; }
+    .view-controls button:disabled { opacity: .42; cursor: default; background: #fff; }
+    #zoom-level { min-width: 44px; text-align: center; color: var(--muted); font: 11px var(--mono); }
+    .view-controls .fit {
+      width: auto;
+      margin-left: 2px;
+      padding-inline: 9px;
+      border-left: 1px solid var(--line);
+      border-radius: 0 5px 5px 0;
+      font-size: 12px;
+      font-weight: 650;
+    }
+    @media (max-width: 600px) {
+      .bar-inner, main { width: calc(100% - 28px); }
+      .bar-inner { min-height: 60px; gap: 9px; }
+      .brand, .file-actions { gap: 8px; }
+      .brand { font-size: 13px; }
+      .brand-mark { flex: none; }
+      .file-actions { font-size: 12px; }
+      .open-file { padding-inline: 8px; }
+      main { padding-block: 22px 14px; }
+      .schema-header { align-items: start; flex-direction: column; gap: 8px; margin-bottom: 13px; }
+      .diagram { height: clamp(420px, calc(100dvh - 180px), 880px); }
+      .diagram-footer { padding-inline: 8px; }
+      .legend { gap: 4px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-bar">
+    <div class="bar-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><span></span></span>Schema Viewer</div>
+      <div class="file-actions">
+        <a class="example-link" id="example-download" href="example.json" download="example.json">Example JSON</a>
+        <button class="open-file" id="open-file" type="button"><span aria-hidden="true">↑</span> Open JSON</button>
+        <input id="file" type="file" accept=".json,application/json" hidden>
+      </div>
+    </div>
+  </header>
+  <main>
+    <div class="schema-header" aria-live="polite">
+      <div class="schema-heading">
+        <h1 id="schema-name"></h1>
+        <p class="source" id="schema-source"></p>
+      </div>
+      <div class="schema-meta" id="schema-meta"></div>
+    </div>
+    <p class="message" id="message" role="alert" hidden></p>
+    <section class="diagram" aria-label="Database schema">
+      <div class="viewport" id="viewport" tabindex="0" role="region"
+        aria-label="Schema diagram. Scroll to zoom. Drag or use arrow keys to pan. Select a table to highlight its foreign keys.">
+        <canvas id="connections" aria-hidden="true"></canvas>
+        <div class="tables" id="tables"></div>
+        <div class="empty" id="empty" hidden>This schema has no tables.</div>
+      </div>
+      <footer class="diagram-footer">
+        <div class="legend" aria-label="Legend">
+          <span><b class="badge pk">PK</b> Primary key</span>
+          <span><b class="badge fk">FK</b> Foreign key</span>
+          <span><b class="null-mark">?</b> Nullable</span>
+        </div>
+        <div class="view-controls" aria-label="Diagram controls">
+          <button id="zoom-out" type="button" aria-label="Zoom out" title="Zoom out">−</button>
+          <output id="zoom-level" aria-label="Zoom"></output>
+          <button id="zoom-in" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+          <button id="fit" class="fit" type="button" title="Fit diagram">Fit</button>
+        </div>
+      </footer>
+    </section>
+  </main>
+
+  <script type="application/json" id="example">
+{
+  "name": "Storefront",
+  "tables": [
+    {
+      "name": "customers",
+      "columns": [
+        { "name": "id", "type": "uuid", "primaryKey": true },
+        { "name": "email", "type": "text" },
+        { "name": "full_name", "type": "text" },
+        { "name": "created_at", "type": "timestamptz" }
+      ]
+    },
+    {
+      "name": "products",
+      "columns": [
+        { "name": "id", "type": "uuid", "primaryKey": true },
+        { "name": "name", "type": "text" },
+        { "name": "sku", "type": "varchar(32)" },
+        { "name": "price_cents", "type": "integer" }
+      ]
+    },
+    {
+      "name": "orders",
+      "columns": [
+        { "name": "id", "type": "uuid", "primaryKey": true },
+        { "name": "customer_id", "type": "uuid", "references": { "table": "customers", "column": "id" } },
+        { "name": "status", "type": "text" },
+        { "name": "placed_at", "type": "timestamptz" },
+        { "name": "shipped_at", "type": "timestamptz", "nullable": true }
+      ]
+    },
+    {
+      "name": "order_items",
+      "columns": [
+        { "name": "id", "type": "uuid", "primaryKey": true },
+        { "name": "order_id", "type": "uuid", "references": { "table": "orders", "column": "id" } },
+        { "name": "product_id", "type": "uuid", "references": { "table": "products", "column": "id" } },
+        { "name": "quantity", "type": "integer" },
+        { "name": "unit_price_cents", "type": "integer" }
+      ]
+    }
+  ]
+}
+  </script>
+  <script>
+    const byId = (id) => document.getElementById(id);
+    const viewport = byId("viewport");
+    const canvas = byId("connections");
+    const context = canvas.getContext("2d");
+    const tableLayer = byId("tables");
+    const fileInput = byId("file");
+    const errorMessage = byId("message");
+    const minScale = 0.035;
+    const maxScale = 2;
+
+    let tables = [];
+    let edges = [];
+    let selected = null;
+    let bounds = { left: 0, top: 0, right: 0, bottom: 0 };
+    let view = { x: 0, y: 0, scale: 1 };
+    let viewMode = "initial";
+    let drag = null;
+    let loadVersion = 0;
+
+    function element(tag, className, label) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (label !== undefined) node.textContent = label;
+      return node;
+    }
+
+    function requireField(condition, message) {
+      if (!condition) throw new Error(message);
+    }
+
+    const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+    const isText = (value) => typeof value === "string" && value.trim().length > 0;
+
+    function parseSchema(data) {
+      requireField(isObject(data) && Array.isArray(data.tables), 'Expected a JSON object with a "tables" array.');
+      requireField(data.name === undefined || isText(data.name), 'Schema "name" must be a non-empty string.');
+      const tablesByName = new Map();
+      for (const [index, table] of data.tables.entries()) {
+        requireField(isObject(table) && isText(table.name), "Table " + (index + 1) + " needs a name.");
+        requireField(!tablesByName.has(table.name), "Duplicate table: " + table.name + ".");
+        requireField(Array.isArray(table.columns), table.name + ' needs a "columns" array.');
+        const columns = new Map();
+        for (const [columnIndex, column] of table.columns.entries()) {
+          requireField(isObject(column) && isText(column.name),
+            "Column " + (columnIndex + 1) + " in " + table.name + " needs a name.");
+          const path = table.name + "." + column.name;
+          requireField(!columns.has(column.name), "Duplicate column: " + path + ".");
+          requireField(isText(column.type), path + " needs a data type.");
+          for (const flag of ["primaryKey", "nullable"]) {
+            requireField(column[flag] === undefined || typeof column[flag] === "boolean",
+              path + " has an invalid " + flag + " value. Use true or false.");
+          }
+          const ref = column.references;
+          requireField(ref === undefined || (isObject(ref) && isText(ref.table) && isText(ref.column)),
+            path + ' needs a "references" object with a table and column.');
+          columns.set(column.name, { ...column });
+        }
+        tablesByName.set(table.name, { name: table.name, columns });
+      }
+
+      const relationships = [];
+      for (const table of tablesByName.values()) {
+        for (const column of table.columns.values()) {
+          if (!column.references) continue;
+          const { table: tableName, column: columnName } = column.references;
+          const target = tablesByName.get(tableName);
+          const targetColumn = target?.columns.get(columnName);
+          requireField(targetColumn, table.name + "." + column.name +
+            " references missing column " + tableName + "." + columnName + ".");
+          relationships.push({ source: table, column, target, targetColumn });
+        }
+      }
+      return { name: data.name, tables: [...tablesByName.values()], edges: relationships };
+    }
+
+    function renderTable(table) {
+      const card = element("article", "table-card");
+      const title = element("button", "table-title");
+      title.type = "button";
+      title.setAttribute("aria-pressed", "false");
+      const icon = element("span", "table-icon");
+      icon.setAttribute("aria-hidden", "true");
+      title.append(icon, element("span", "", table.name));
+      title.addEventListener("click", () => selectTable(selected === table ? null : table));
+      card.append(title);
+      table.card = card;
+      table.title = title;
+
+      const list = element("ul", "columns");
+      for (const column of table.columns.values()) {
+        const row = element("li", "column-row");
+        const name = element("span", "column-name", column.name);
+        if (column.primaryKey) {
+          const badge = element("span", "badge pk", "PK");
+          badge.title = "Primary key";
+          name.append(badge);
+        }
+        if (column.references) {
+          const badge = element("span", "badge fk", "FK");
+          badge.title = "References " + column.references.table + "." + column.references.column;
+          badge.setAttribute("aria-label", "Foreign key. " + badge.title);
+          name.append(badge);
+        }
+        const type = element("span", "column-type", column.type);
+        if (column.nullable) {
+          const marker = element("span", "null-mark", "?");
+          marker.title = "Nullable";
+          marker.setAttribute("aria-label", "Nullable");
+          type.append(marker);
+        } else if (column.nullable === false) {
+          type.title = "Required";
+        }
+        row.append(name, type);
+        list.append(row);
+        column.row = row;
+      }
+      card.append(list.children.length ? list : element("p", "no-columns", "No columns"));
+      return card;
+    }
+
+    function layoutTables() {
+      // Place referenced tables first. Tables involved in cycles keep their input order.
+      const nodes = new Map(tables.map((table) => [table, { level: 0, parents: new Set(), children: new Set() }]));
+      for (const { source, target } of edges) {
+        if (source === target) continue;
+        nodes.get(source).parents.add(target);
+        nodes.get(target).children.add(source);
+      }
+      const queue = tables.filter((table) => nodes.get(table).parents.size === 0);
+      for (const table of queue) {
+        const { level, children } = nodes.get(table);
+        for (const child of children) {
+          const node = nodes.get(child);
+          node.level = Math.max(node.level, level + 1);
+          node.parents.delete(table);
+          if (node.parents.size === 0) queue.push(child);
+        }
+      }
+
+      const layers = new Map();
+      for (const table of tables) {
+        const { level } = nodes.get(table);
+        if (!layers.has(level)) layers.set(level, []);
+        layers.get(level).push(table);
+      }
+      const gap = 40;
+      const groups = [];
+      for (const level of [...layers.keys()].sort((a, b) => a - b)) {
+        const layer = layers.get(level);
+        // Keep a layer with many unrelated tables from becoming a single tall stack.
+        for (let i = 0; i < layer.length; i += 3) {
+          const group = layer.slice(i, i + 3);
+          const height = group.reduce((sum, table) => sum + table.card.offsetHeight, 0) + gap * (group.length - 1);
+          groups.push({ tables: group, height });
+        }
+      }
+      const height = groups.reduce((largest, group) => Math.max(largest, group.height), 0);
+      let right = 0;
+      for (const [index, group] of groups.entries()) {
+        let y = Math.round((height - group.height) / 2);
+        for (const table of group.tables) {
+          table.group = index;
+          table.x = index * (table.card.offsetWidth + 112);
+          table.y = y;
+          table.right = table.x + table.card.offsetWidth;
+          table.card.style.left = table.x + "px";
+          table.card.style.top = y + "px";
+          y += table.card.offsetHeight + gap;
+          right = Math.max(right, table.right);
+        }
+      }
+      bounds = { left: 0, top: 0, right, bottom: height };
+      routeEdges(height);
+    }
+
+    function port(table, column, side) {
+      return {
+        x: side === "left" ? table.x : table.right,
+        y: table.y + table.card.clientTop + column.row.offsetTop + column.row.offsetHeight / 2
+      };
+    }
+
+    function routeEdges(height) {
+      const lanes = new Map();
+      function nextLane(key) {
+        const index = lanes.get(key) ?? 0;
+        lanes.set(key, index + 1);
+        return index;
+      }
+      for (const edge of edges) {
+        const { source, column, target, targetColumn } = edge;
+        const distance = Math.abs(source.group - target.group);
+        const movesRight = source.group < target.group;
+        const a = port(source, column, distance === 0 || movesRight ? "right" : "left");
+        const b = port(target, targetColumn, distance === 0 || !movesRight ? "right" : "left");
+        const gap = Math.min(source.group, target.group);
+        let turns;
+        if (distance === 0) {
+          const lane = a.x + 22 + nextLane("side:" + gap) % 7 * 6;
+          if (a.y === b.y) {
+            a.y -= 4;
+            b.y += 4;
+          }
+          turns = [{ x: lane, y: a.y }, { x: lane, y: b.y }];
+        } else if (distance === 1) {
+          const offsets = [0, -10, 10, -20, 20, -30, 30];
+          const lane = (a.x + b.x) / 2 + offsets[nextLane("gap:" + gap) % offsets.length];
+          turns = [{ x: lane, y: a.y }, { x: lane, y: b.y }];
+        } else {
+          // Cross intervening groups above or below their cards.
+          const above = a.y + b.y < height;
+          const inset = 29 + nextLane(above ? "above" : "below") * 9;
+          const y = above ? -inset : height + inset;
+          const direction = movesRight ? 1 : -1;
+          const start = a.x + direction * 36;
+          const end = b.x - direction * 36;
+          turns = [{ x: start, y: a.y }, { x: start, y }, { x: end, y }, { x: end, y: b.y }];
+        }
+        edge.points = [a, ...turns, b].filter((point, index, points) =>
+          index === 0 || point.x !== points[index - 1].x || point.y !== points[index - 1].y);
+        for (const point of edge.points) {
+          bounds.left = Math.min(bounds.left, point.x);
+          bounds.top = Math.min(bounds.top, point.y);
+          bounds.right = Math.max(bounds.right, point.x);
+          bounds.bottom = Math.max(bounds.bottom, point.y);
+        }
+      }
+    }
+
+    function drawEdge(edge, focused) {
+      const points = edge.points;
+      const start = points[0];
+      const end = points.at(-1);
+      const beforeEnd = points.at(-2);
+      const direction = Math.sign(end.x - beforeEnd.x);
+      const tip = end.x - direction * 2;
+      const tail = tip - direction * 7;
+      context.strokeStyle = focused ? "#5a48bf" : "#8276b5";
+      context.fillStyle = context.strokeStyle;
+      context.lineWidth = focused ? 2.2 : 1.55;
+      context.globalAlpha = selected && !focused ? .25 : 1;
+
+      context.beginPath();
+      context.moveTo(start.x, start.y);
+      for (let index = 1; index < points.length - 1; index++) {
+        const previous = points[index - 1];
+        const current = points[index];
+        const next = points[index + 1];
+        const distance = (first, second) => Math.hypot(first.x - second.x, first.y - second.y);
+        const radius = Math.min(9, distance(previous, current) / 2, distance(current, next) / 2);
+        context.arcTo(current.x, current.y, next.x, next.y, radius);
+      }
+      context.lineTo(tail, end.y);
+      context.stroke();
+      context.beginPath();
+      context.arc(start.x, start.y, 3.1, 0, Math.PI * 2);
+      context.fill();
+      context.beginPath();
+      context.moveTo(tip, end.y);
+      context.lineTo(tail, end.y - 3.7);
+      context.lineTo(tail, end.y + 3.7);
+      context.closePath();
+      context.fill();
+    }
+
+    const touchesSelection = (edge) => edge.source === selected || edge.target === selected;
+
+    function paint() {
+      const ratio = window.devicePixelRatio || 1;
+      const width = Math.round(viewport.clientWidth * ratio);
+      const height = Math.round(viewport.clientHeight * ratio);
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, width, height);
+      context.setTransform(view.scale * ratio, 0, 0, view.scale * ratio, view.x * ratio, view.y * ratio);
+      for (const edge of edges) {
+        if (!touchesSelection(edge)) drawEdge(edge, false);
+      }
+      if (selected) {
+        for (const edge of edges) {
+          if (touchesSelection(edge)) drawEdge(edge, true);
+        }
+      }
+      context.globalAlpha = 1;
+      tableLayer.style.transform = "translate(" + view.x + "px," + view.y + "px) scale(" + view.scale + ")";
+      viewport.style.backgroundPosition = view.x % 19 + "px " + view.y % 19 + "px";
+      byId("zoom-level").value = Math.round(view.scale * 100) + "%";
+      byId("zoom-in").disabled = tables.length === 0 || view.scale >= maxScale;
+      byId("zoom-out").disabled = tables.length === 0 || view.scale <= minScale;
+      byId("fit").disabled = tables.length === 0;
+    }
+
+    function selectTable(table) {
+      selected = table;
+      const related = new Set([table]);
+      const linked = new Set();
+      for (const edge of edges) {
+        if (!touchesSelection(edge)) continue;
+        related.add(edge.source);
+        related.add(edge.target);
+        linked.add(edge.column);
+        linked.add(edge.targetColumn);
+      }
+      for (const item of tables) {
+        item.title.setAttribute("aria-pressed", String(item === selected));
+        item.card.classList.toggle("dimmed", !!selected && !related.has(item));
+        for (const column of item.columns.values()) column.row.classList.toggle("linked", linked.has(column));
+      }
+      paint();
+    }
+
+    function showDiagram(mode) {
+      viewMode = mode;
+      const width = viewport.clientWidth;
+      const height = viewport.clientHeight;
+      const diagramWidth = bounds.right - bounds.left;
+      const diagramHeight = bounds.bottom - bounds.top;
+      const padding = width < 600 ? 20 : 35;
+      const scale = Math.max(minScale, Math.min(1, (width - padding * 2) / Math.max(diagramWidth, 1),
+        (height - padding * 2) / Math.max(diagramHeight, 1)));
+
+      if (mode === "initial" && width < 600 && scale < .85) {
+        view = { scale: .85, x: padding - bounds.left * .85, y: padding - bounds.top * .85 };
+      } else {
+        view = {
+          scale,
+          x: (width - diagramWidth * scale) / 2 - bounds.left * scale,
+          y: (height - diagramHeight * scale) / 2 - bounds.top * scale
+        };
+      }
+      paint();
+    }
+
+    function zoom(factor, anchorX = viewport.clientWidth / 2, anchorY = viewport.clientHeight / 2) {
+      const scale = Math.max(minScale, Math.min(maxScale, view.scale * factor));
+      if (scale === view.scale) return;
+      viewMode = "manual";
+      const ratio = scale / view.scale;
+      view = { scale, x: anchorX + (view.x - anchorX) * ratio, y: anchorY + (view.y - anchorY) * ratio };
+      paint();
+    }
+
+    function displaySchema(schema, source, fallbackName) {
+      ({ tables, edges } = schema);
+      selected = null;
+      byId("schema-name").textContent = schema.name ?? fallbackName;
+      byId("schema-source").textContent = source;
+      const count = (value, noun) => value + " " + noun + (value === 1 ? "" : "s");
+      byId("schema-meta").replaceChildren(
+        element("span", "", count(tables.length, "table")),
+        element("span", "", count(edges.length, "relationship"))
+      );
+      byId("empty").hidden = tables.length > 0;
+      tableLayer.replaceChildren(...tables.map(renderTable));
+      layoutTables();
+      showDiagram("initial");
+    }
+
+    byId("open-file").addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      fileInput.value = "";
+      const version = ++loadVersion;
+      try {
+        const schema = parseSchema(JSON.parse((await file.text()).replace(/^\uFEFF/, "")));
+        if (version !== loadVersion) return;
+        errorMessage.hidden = true;
+        displaySchema(schema, file.name, file.name.replace(/\.json$/i, "") || "Schema");
+      } catch (error) {
+        if (version !== loadVersion) return;
+        const reason = error instanceof SyntaxError ? "The file contains invalid JSON." : error.message;
+        errorMessage.textContent = "Could not open " + file.name + ". " + reason;
+        errorMessage.hidden = false;
+      }
+    });
+
+    byId("fit").addEventListener("click", () => showDiagram("fit"));
+    byId("zoom-in").addEventListener("click", () => zoom(1.25));
+    byId("zoom-out").addEventListener("click", () => zoom(1 / 1.25));
+    viewport.addEventListener("wheel", (event) => {
+      const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 :
+        event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? viewport.clientHeight : 1;
+      if (!tables.length || !event.deltaY) return;
+      event.preventDefault();
+      const frame = viewport.getBoundingClientRect();
+      const factor = Math.exp(-event.deltaY * unit * .0025);
+      zoom(factor, event.clientX - frame.left, event.clientY - frame.top);
+    }, { passive: false });
+    viewport.addEventListener("pointerdown", (event) => {
+      if (!tables.length || drag || event.button !== 0 || event.target.closest(".table-card")) return;
+      drag = { id: event.pointerId, x: event.clientX, y: event.clientY, startX: view.x, startY: view.y };
+      viewport.setPointerCapture(event.pointerId);
+    });
+    viewport.addEventListener("pointermove", (event) => {
+      if (drag?.id !== event.pointerId) return;
+      const dx = event.clientX - drag.x;
+      const dy = event.clientY - drag.y;
+      if (!viewport.classList.contains("dragging") && Math.hypot(dx, dy) < 4) return;
+      viewMode = "manual";
+      viewport.classList.add("dragging");
+      view.x = drag.startX + dx;
+      view.y = drag.startY + dy;
+      paint();
+    });
+    function endDrag(event) {
+      if (drag?.id !== event.pointerId) return;
+      if (event.type === "pointerup" && !viewport.classList.contains("dragging")) selectTable(null);
+      drag = null;
+      viewport.classList.remove("dragging");
+    }
+    for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) viewport.addEventListener(event, endDrag);
+    viewport.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && selected) selectTable(null);
+      if (event.target !== viewport || !tables.length) return;
+      const directions = { ArrowLeft: [50, 0], ArrowRight: [-50, 0], ArrowUp: [0, 50], ArrowDown: [0, -50] };
+      const direction = directions[event.key];
+      if (!direction) return;
+      event.preventDefault();
+      viewMode = "manual";
+      view.x += direction[0];
+      view.y += direction[1];
+      paint();
+    });
+    viewport.addEventListener("focusin", (event) => {
+      const card = event.target.closest(".table-card");
+      if (!card || !event.target.matches(":focus-visible")) return;
+      const frame = viewport.getBoundingClientRect();
+      const rect = card.getBoundingClientRect();
+      if (rect.left < frame.left || rect.right > frame.right || rect.top < frame.top || rect.bottom > frame.bottom) {
+        viewMode = "manual";
+        view.x += (frame.left + frame.right - rect.left - rect.right) / 2;
+        view.y += (frame.top + frame.bottom - rect.top - rect.bottom) / 2;
+        paint();
+      }
+    });
+    new ResizeObserver(() => {
+      if (viewMode === "manual") paint();
+      else showDiagram(viewMode);
+    }).observe(viewport);
+
+    const exampleJson = byId("example").textContent.trim();
+    byId("example-download").href = URL.createObjectURL(new Blob([exampleJson + "\n"], { type: "application/json" }));
+    displaySchema(parseSchema(JSON.parse(exampleJson)), "Example schema", "Schema");
+  </script>
+</body>
+</html>
