@@ -4,134 +4,112 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <title>Schema Viewer</title>
-  <link rel="icon" href="data:,">
+  <title>Schema Viewer · Jeevan M R</title>
+  <link rel="canonical" href="https://jeevanmr.com/schema-viewer/">
+  <link rel="icon" href="./favicon.ico">
   <style>
     :root {
-      font-family: Inter, system-ui, -apple-system, sans-serif;
-      color: #232a3b;
-      background: #f7f8fc;
-      font-synthesis: none;
-      --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
-      --muted: #5e687c;
-      --line: #dce1ed;
-      --accent: #5046b4;
+      --paper: #fffcf5;
+      --ink: #272822;
+      --muted: #54534b;
+      --line: #e6e1d5;
+      --rule: #b4ac9c;
+      --focus: #254a70;
+      --highlight: #f4ff00;
+      --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
     }
     * { box-sizing: border-box; }
-    body { margin: 0; }
-    button, a { font: inherit; }
-    button { cursor: pointer; }
-    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-    [hidden] { display: none !important; }
-    .app-bar {
-      background: #fff;
-      border-bottom: 1px solid var(--line);
-    }
-    .bar-inner, main {
-      width: min(calc(100% - 64px), 1440px);
-      margin-inline: auto;
-    }
-    .bar-inner {
-      min-height: 67px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 20px;
-    }
-    .brand, .file-actions, .schema-meta, .legend, .view-controls {
-      display: flex;
-      align-items: center;
-    }
-    .brand { gap: 10px; font-size: 15px; font-weight: 700; white-space: nowrap; }
-    .brand-mark {
-      position: relative;
-      display: inline-block;
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
-      background: #5248b8;
-    }
-    .brand-mark::before, .brand-mark::after {
-      position: absolute;
-      width: 7px;
-      height: 6px;
-      border: 1.5px solid #fff;
-      border-radius: 2px;
-      content: "";
-    }
-    .brand-mark::before { left: 7px; top: 8px; }
-    .brand-mark::after { right: 7px; bottom: 8px; }
-    .brand-mark span {
-      position: absolute;
-      left: 12px;
-      top: 15px;
-      width: 7px;
-      height: 6px;
-      border-left: 1.5px solid #fff;
-      border-bottom: 1.5px solid #fff;
-    }
-    .file-actions { gap: 17px; font-size: 13px; font-weight: 600; }
-    .example-link { color: var(--muted); text-decoration: none; white-space: nowrap; }
-    .example-link:hover { color: var(--accent); text-decoration: underline; }
-    .open-file {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: #272d44;
-      border: 1px solid transparent;
-      border-radius: 8px;
-      padding: 9px 13px;
-      color: #fff;
-      font-weight: inherit;
-      white-space: nowrap;
-    }
-    .open-file:hover { background: #3c4260; }
-    .open-file span { font-size: 17px; line-height: .7; }
-    main { padding-block: 32px 22px; }
-    .schema-header {
-      display: flex;
-      align-items: end;
-      justify-content: space-between;
-      gap: 12px 24px;
-      margin-bottom: 18px;
-    }
-    .schema-heading { min-width: 0; }
-    h1 {
-      margin: 0 0 5px;
-      font-size: clamp(28px, 4vw, 37px);
-      font-weight: 710;
-      line-height: 1.12;
-      letter-spacing: -.048em;
-      overflow-wrap: anywhere;
-    }
-    .source {
+    body {
       margin: 0;
-      color: var(--muted);
-      font-size: 13px;
+      background: var(--paper);
+      color: var(--ink);
+      font: 1.0625rem/1.65 Georgia, serif;
+    }
+    a {
+      color: inherit;
+      text-decoration: underline;
+      text-decoration-color: var(--rule);
+      text-decoration-thickness: 1px;
+      text-underline-offset: .16em;
+    }
+    a:hover { text-decoration-color: currentColor; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+    [hidden] { display: none !important; }
+    .workspace {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+    .project-bar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "project actions";
+      align-items: center;
+      gap: .75rem 1rem;
+      padding: 1rem clamp(1rem, 2vw, 2rem);
+    }
+    .project-title {
+      grid-area: project;
+      display: flex;
+      align-items: center;
+      gap: .55em;
+      margin: 0;
+      font-size: 1.1em;
+    }
+    .project-mark {
+      display: grid;
+      place-items: center;
+      width: 1.8rem;
+      height: 1.8rem;
+      background: #254a70;
+      color: var(--paper);
+      border-radius: 3px;
+    }
+    .schema-summary { grid-area: schema; text-align: center; line-height: 1.4; }
+    .schema-summary h2 {
+      margin: 0;
+      font-size: 1.15em;
+      font-weight: normal;
+      line-height: 1.15;
+      letter-spacing: -.035em;
       overflow-wrap: anywhere;
     }
-    .schema-meta { gap: 10px; color: var(--muted); font-size: 13px; white-space: nowrap; }
-    .schema-meta span + span::before { content: "·"; margin-right: 10px; color: #788097; }
+    .file-actions, .legend, .view-controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .file-actions { grid-area: actions; justify-self: end; justify-content: end; gap: .5em 1em; font-size: .875em; }
+    #schema-source, .schema-meta { color: var(--muted); font-size: .875em; overflow-wrap: anywhere; }
+    .schema-meta span::before { content: "·"; margin-inline: .5em; }
+    .primary-button {
+      min-height: 2.5rem;
+      padding: .35em 1em;
+      border: 1px solid #c4c1ba;
+      border-radius: 3px;
+      background: #eae8e3;
+      color: var(--ink);
+    }
+    @media (hover: hover) {
+      .primary-button:hover { box-shadow: 0 0 0 1px #27282220; }
+    }
     .message {
-      margin: 0 0 14px;
+      margin: 0;
       padding: 10px 14px;
-      border: 1px solid #edc6c5;
-      border-radius: 8px;
-      color: #8b3237;
-      background: #fff5f4;
+      border: 1px solid #c9a498;
+      color: #772f24;
+      background: #fff6ed;
       font-size: 14px;
       overflow-wrap: anywhere;
     }
     .diagram {
       display: flex;
       flex-direction: column;
-      height: clamp(450px, calc(100vh - 208px), 880px);
-      height: clamp(450px, calc(100dvh - 208px), 880px);
+      flex: 1;
       overflow: hidden;
-      border: 1px solid #d8deed;
-      border-radius: 15px;
-      background: #fff;
-      box-shadow: 0 4px 18px #26335509;
+      background: var(--paper);
     }
     .viewport {
       position: relative;
@@ -139,7 +117,7 @@
       min-height: 0;
       overflow: hidden;
       overflow: clip;
-      background: #f1f3fb radial-gradient(circle, #c1c9e0 0.8px, transparent 1px);
+      background: #f8f5ed radial-gradient(circle, #d8d2c5 0.8px, transparent 1px);
       background-size: 19px 19px;
       touch-action: none;
       cursor: grab;
@@ -152,15 +130,13 @@
       position: absolute;
       width: 280px;
       overflow: hidden;
-      border: 1px solid #d1d8eb;
-      border-radius: 11px;
-      background: #fff;
-      box-shadow: 0 2px 3px #2833600b, 0 7px 20px #2833600d;
+      border: 1px solid var(--rule);
+      background: var(--paper);
       cursor: auto;
     }
     .table-card:has(.table-title[aria-pressed="true"]) {
-      border-color: #7064d0;
-      box-shadow: 0 0 0 2px #c6bef5, 0 7px 20px #28336014;
+      border-color: var(--ink);
+      outline: 1px solid var(--ink);
     }
     .table-card.dimmed { opacity: .52; }
     .table-title {
@@ -171,14 +147,15 @@
       min-height: 49px;
       padding: 10px 13px;
       border: 0;
-      border-bottom: 1px solid #e5e7f3;
-      background: #f7f6fe;
-      color: #302b55;
+      border-bottom: 1px solid var(--rule);
+      background: #efece2;
+      color: var(--ink);
       font: 700 14px/1.35 var(--mono);
       text-align: left;
       overflow-wrap: anywhere;
     }
-    .table-title:hover, .table-title[aria-pressed="true"] { background: #eeebfc; }
+    .table-title:hover { background: #e6e1d5; }
+    .table-title[aria-pressed="true"] { background: var(--highlight); }
     .table-title:focus-visible { outline-offset: -3px; }
     .table-icon {
       flex: none;
@@ -186,7 +163,7 @@
       height: 14px;
       border: 1.4px solid currentColor;
       border-radius: 3px;
-      color: #6a60b7;
+      color: var(--muted);
       background:
         linear-gradient(currentColor, currentColor) 0 3px / 100% 1px no-repeat,
         linear-gradient(currentColor, currentColor) 4px 4px / 1px 100% no-repeat;
@@ -202,9 +179,9 @@
       font: 12px/1.35 var(--mono);
       overflow-wrap: anywhere;
     }
-    .column-row + .column-row { border-top: 1px solid #eff1f7; }
-    .column-row.linked { background: #f5f2ff; }
-    .column-type { color: #536079; text-align: right; }
+    .column-row + .column-row { border-top: 1px solid var(--line); }
+    .column-row.linked { background: #f7f4cd; }
+    .column-type { color: var(--muted); text-align: right; }
     .column-name { font-weight: 550; }
     .badge {
       display: inline-block;
@@ -214,11 +191,11 @@
       vertical-align: 1px;
     }
     .column-name .badge { margin-left: 5px; }
-    .pk { color: #77511b; background: #fbefd5; }
-    .fk { color: #5142a1; background: #ece8fc; }
+    .pk { color: #724300; background: #ffe3a1; }
+    .fk { color: #254a70; background: #d9ebfa; }
     .null-mark {
       margin-left: 4px;
-      color: #6154a4;
+      color: var(--muted);
       font-weight: 700;
     }
     .no-columns { margin: 0; padding: 12px; font-size: 12px; color: var(--muted); }
@@ -232,23 +209,24 @@
       pointer-events: none;
     }
     .diagram-footer {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr);
+      grid-template-areas: "legend schema zoom";
       align-items: center;
       gap: 8px 18px;
       min-height: 52px;
-      padding: 7px 12px 7px 16px;
+      padding: 7px 16px;
       border-top: 1px solid var(--line);
     }
-    .legend { flex-wrap: wrap; gap: 4px 15px; font-size: 11px; color: var(--muted); }
+    .legend { grid-area: legend; gap: 4px 15px; font-size: .8em; color: var(--muted); }
     .legend span { white-space: nowrap; }
     .legend .badge, .legend .null-mark { margin: 0 3px 0 0; }
     .view-controls {
-      flex: none;
+      grid-area: zoom;
+      justify-self: end;
       gap: 2px;
       padding: 2px;
       border: 1px solid var(--line);
-      border-radius: 8px;
     }
     .view-controls button {
       display: grid;
@@ -257,13 +235,13 @@
       height: 27px;
       border: 0;
       border-radius: 5px;
-      background: #fff;
-      color: #344059;
+      background: var(--paper);
+      color: var(--ink);
       font-size: 18px;
       line-height: 1;
     }
-    .view-controls button:hover { background: #eeebfc; color: #463c9e; }
-    .view-controls button:disabled { opacity: .42; cursor: default; background: #fff; }
+    .view-controls button:hover { background: var(--line); color: var(--ink); }
+    .view-controls button:disabled { opacity: .42; cursor: default; background: var(--paper); }
     #zoom-level { min-width: 44px; text-align: center; color: var(--muted); font: 11px var(--mono); }
     .view-controls .fit {
       width: auto;
@@ -274,41 +252,41 @@
       font-size: 12px;
       font-weight: 650;
     }
+    @media (max-width: 800px) {
+      .diagram-footer {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas: "schema schema" "legend zoom";
+      }
+    }
+    @media (max-width: 420px) {
+      .project-bar { padding: .75rem; column-gap: .5rem; }
+      .file-actions { flex-direction: column; gap: .25rem; }
+    }
     @media (max-width: 600px) {
-      .bar-inner, main { width: calc(100% - 28px); }
-      .bar-inner { min-height: 60px; gap: 9px; }
-      .brand, .file-actions { gap: 8px; }
-      .brand { font-size: 13px; }
-      .brand-mark { flex: none; }
-      .file-actions { font-size: 12px; }
-      .open-file { padding-inline: 8px; }
-      main { padding-block: 22px 14px; }
-      .schema-header { align-items: start; flex-direction: column; gap: 8px; margin-bottom: 13px; }
-      .diagram { height: clamp(420px, calc(100dvh - 180px), 880px); }
-      .diagram-footer { padding-inline: 8px; }
+      .diagram-footer { gap: 6px 8px; padding: 8px; }
       .legend { gap: 4px 8px; }
     }
   </style>
 </head>
 <body>
-  <header class="app-bar">
-    <div class="bar-inner">
-      <div class="brand"><span class="brand-mark" aria-hidden="true"><span></span></span>Schema Viewer</div>
+  <main class="workspace">
+    <header class="project-bar">
+      <h1 class="project-title">
+        <span class="project-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor">
+            <path d="M5 8v5h6"/>
+            <rect x="1" y="2" width="8" height="6" rx="1" fill="#ffce70" stroke="none"/>
+            <rect x="11" y="10" width="8" height="6" rx="1" fill="#a5d9ff" stroke="none"/>
+          </svg>
+        </span>
+        Schema Viewer
+      </h1>
       <div class="file-actions">
-        <a class="example-link" id="example-download" href="example.json" download="example.json">Example JSON</a>
-        <button class="open-file" id="open-file" type="button"><span aria-hidden="true">↑</span> Open JSON</button>
+        <a id="example-download" href="example.json" download="example.json">Example JSON</a>
+        <button class="primary-button" id="open-file" type="button">Open JSON</button>
         <input id="file" type="file" accept=".json,application/json" hidden>
       </div>
-    </div>
-  </header>
-  <main>
-    <div class="schema-header" aria-live="polite">
-      <div class="schema-heading">
-        <h1 id="schema-name"></h1>
-        <p class="source" id="schema-source"></p>
-      </div>
-      <div class="schema-meta" id="schema-meta"></div>
-    </div>
+    </header>
     <p class="message" id="message" role="alert" hidden></p>
     <section class="diagram" aria-label="Database schema">
       <div class="viewport" id="viewport" tabindex="0" role="region"
@@ -318,6 +296,11 @@
         <div class="empty" id="empty" hidden>This schema has no tables.</div>
       </div>
       <footer class="diagram-footer">
+        <div class="schema-summary" aria-live="polite">
+          <h2 id="schema-name"></h2>
+          <span id="schema-source"></span>
+          <span class="schema-meta" id="schema-meta"></span>
+        </div>
         <div class="legend" aria-label="Legend">
           <span><b class="badge pk">PK</b> Primary key</span>
           <span><b class="badge fk">FK</b> Foreign key</span>
@@ -616,7 +599,7 @@
       const direction = Math.sign(end.x - beforeEnd.x);
       const tip = end.x - direction * 2;
       const tail = tip - direction * 7;
-      context.strokeStyle = focused ? "#5a48bf" : "#8276b5";
+      context.strokeStyle = focused ? "#272822" : "#827a68";
       context.fillStyle = context.strokeStyle;
       context.lineWidth = focused ? 2.2 : 1.55;
       context.globalAlpha = selected && !focused ? .25 : 1;
